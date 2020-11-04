@@ -16,6 +16,7 @@ namespace WebApiCar.Controllers
 
         static string conn = "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=CarDB;Integrated Security=True;Connect Timeout=30;Encrypt=False;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False";
 
+        
         public static List<Car> carList = new List<Car>()
         {
             new Car(){Id = 1,Model="x3",Vendor="Tesla", Price=400000},
@@ -23,6 +24,7 @@ namespace WebApiCar.Controllers
             new Car(){Id = 3,Model="x1",Vendor="Tesla", Price=800000},
             new Car(){Id = 4,Model="x0",Vendor="Tesla", Price=1400000},
         };
+        
 
         /// <summary>
         /// Method for get all the cars from the static list
@@ -59,16 +61,39 @@ namespace WebApiCar.Controllers
                 }
 
 
-                    }
+            }
 
-                return carList;
+            return carList;
         }
 
         // GET: api/Cars/5
-        [HttpGet("{id}", Name = "Get")]
+        [HttpGet("{id}", Name = "GetById")]
         public Car Get(int id)
         {
-            return carList.FirstOrDefault(x => x.Id == id);
+            string selectById = "select vendor, model, price from Car where id = @id";
+
+            using (SqlConnection databaseConnection = new SqlConnection(conn))
+            {
+                using (SqlCommand selectCommand = new SqlCommand(selectById, databaseConnection))
+                {
+                    selectCommand.Parameters.AddWithValue("@id", id);
+                    databaseConnection.Open();
+
+                    using (SqlDataReader reader = selectCommand.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string vendor = reader.GetString(0);
+                            string model = reader.GetString(1);
+                            int price = reader.GetInt32(2);
+
+                            return new Car(id, vendor, model, price);
+
+                        }
+                    }
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -79,6 +104,27 @@ namespace WebApiCar.Controllers
         [HttpPost]
         public void Post([FromBody] Car value)
         {
+            string insertSql = "insert into car(id, model, vendor, price) values (@id, @model, @vendor, @price)";
+
+            using (SqlConnection databaseConnection = new SqlConnection(conn))
+            {
+                databaseConnection.Open();
+                using (SqlCommand insertCommand = new SqlCommand(insertSql, databaseConnection))
+                {
+                    insertCommand.Parameters.AddWithValue("@id", value.Id);
+                    insertCommand.Parameters.AddWithValue("@model", value.Model);
+                    insertCommand.Parameters.AddWithValue("@vendor", value.Vendor);
+                    insertCommand.Parameters.AddWithValue("@price", value.Price);
+
+                    //ExecuteNonQuery shows the number of rows affected
+                    int rowsaffected = insertCommand.ExecuteNonQuery();
+                    Console.WriteLine($"rows affected: {rowsaffected}");
+                }
+
+
+            }
+
+
             Car newcar = new Car() { Id = GetId(), Model = value.Model, Vendor = value.Vendor, Price = value.Price };
             carList.Add(newcar);
         }
